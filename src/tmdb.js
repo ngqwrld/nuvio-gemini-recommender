@@ -155,6 +155,7 @@ export async function validateAndEnrich(rec) {
       background,
       description: details?.overview || rec.reason,
       releaseInfo,
+      year: parseInt(releaseYear) || null,
       genres,
       imdbRating: tmdbItem.vote_average ? tmdbItem.vote_average.toFixed(1) : null,
       tmdbId: tmdbItem.id,

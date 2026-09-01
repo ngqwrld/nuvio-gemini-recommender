@@ -82,6 +82,7 @@ async function toMeta(item, type) {
     background: item.backdrop_path ? `${BACKDROP_BASE}${item.backdrop_path}` : null,
     description: item.overview || null,
     releaseInfo: releaseYear,
+    year: parseInt(releaseYear) || null,
     imdbRating: item.vote_average ? item.vote_average.toFixed(1) : null,
     genres,
   };

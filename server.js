@@ -94,7 +94,8 @@ async function handleCatalog(req, res) {
         poster: item.poster,
         background: item.background,
         description: item.description,
-        releaseInfo: item.release_info,
+        releaseInfo: item.releaseInfo || item.release_info,
+        year: item.year || null,
         imdbRating: item.imdb_rating,
         genres: item.genres || [],
       }));
