@@ -40,12 +40,12 @@ const MANIFEST = {
     {
       type: "movie",
       id: "gemini-recommended",
-      name: "⭐ Recomendado para ti",
+      name: "Recomendado para ti",
     },
     {
       type: "series",
       id: "gemini-recommended",
-      name: "⭐ Recomendado para ti",
+      name: "Recomendado para ti",
     },
   ],
   behaviorHints: {
