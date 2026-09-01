@@ -10,10 +10,10 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // Modelos en orden de preferencia (el primero disponible que soporte JSON output)
 const CANDIDATE_MODELS = [
+  "gemini-3.6-flash",
   "gemini-3.5-flash",
   "gemini-3.5-flash-lite",
   "gemini-3.7-flash",
-  "gemini-2.5-flash",
 ];
 
 // Schema de respuesta estructurada
@@ -93,7 +93,7 @@ INSTRUCCIONES:
 3. Mezcla películas y series (mínimo 18 de cada tipo).
 4. OBLIGATORIO: el 80% de las recomendaciones deben ser del año 2010 en adelante. El 20% restante puede ser de años anteriores solo si son obras maestras muy relevantes para el perfil del usuario.
 5. PROHIBIDO recomendar más de 1 título de la misma saga o franquicia. Si recomiendas una película de una saga, no incluyas ninguna otra de esa misma saga.
-6. PROHIBIDO recomendar títulos con año anterior a 2000, a menos que sean considerados clásicos imprescindibles y directamente relacionados con los gustos del usuario.
+6. PROHIBIDO recomendar títulos con año anterior a 2005 sin excepción.
 7. Prioriza títulos con buenas críticas (IMDb 7+, Rotten Tomatoes 70%+).
 8. Prioriza similitud de géneros, directores y tono narrativo con lo que ya vio el usuario.
 9. Solo títulos REALES que existen en TMDB/IMDb.
@@ -106,32 +106,41 @@ Responde ÚNICAMENTE con el JSON estructurado.`;
   let lastError = null;
 
   for (const model of CANDIDATE_MODELS) {
-    try {
-      console.log(`[Gemini] Intentando con modelo: ${model}`);
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: RESPONSE_SCHEMA,
-          temperature: 0.7,
-          maxOutputTokens: 8192,
-        },
-      });
+    // Intentar hasta 3 veces si el modelo está saturado (503)
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`[Gemini] Intentando con modelo: ${model} (intento ${attempt})`);
+        const response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: RESPONSE_SCHEMA,
+            temperature: 0.7,
+            maxOutputTokens: 8192,
+          },
+        });
 
-      const result = JSON.parse(response.text);
+        const result = JSON.parse(response.text);
+        if (!result.recommendations || !Array.isArray(result.recommendations)) {
+          throw new Error("Respuesta de Gemini no tiene el formato esperado");
+        }
 
-      if (!result.recommendations || !Array.isArray(result.recommendations)) {
-        throw new Error("Respuesta de Gemini no tiene el formato esperado");
+        console.log(`[Gemini] ${result.recommendations.length} recomendaciones generadas con ${model}`);
+        return result;
+      } catch (err) {
+        const is503 = err.message?.includes('"code":503') || err.message?.includes("503");
+        console.warn(`[Gemini] Error con ${model}: ${err.message}`);
+        lastError = err;
+
+        if (is503 && attempt < 3) {
+          // Esperar 5 segundos antes de reintentar
+          console.log(`[Gemini] Saturado, reintentando en 5s...`);
+          await new Promise((r) => setTimeout(r, 5000));
+        } else {
+          break; // pasar al siguiente modelo
+        }
       }
-
-      console.log(
-        `[Gemini] ${result.recommendations.length} recomendaciones generadas con ${model}`
-      );
-      return result;
-    } catch (err) {
-      console.warn(`[Gemini] Error con ${model}: ${err.message}`);
-      lastError = err;
     }
   }
 
