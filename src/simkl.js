@@ -1,8 +1,7 @@
 // src/simkl.js
 // Módulo para interactuar con la API de Simkl.
-// Obtiene historial, ratings y watchlist del usuario autenticado.
-// El access_token de Simkl dura ~5 años — no necesita refresh automático.
-// Solo hay que repetir el OAuth si el usuario revoca el acceso.
+// La respuesta de /sync/all-items es un objeto { movies: [...], shows: [...], anime: [...] }
+// El access_token de Simkl dura ~5 años.
 
 import "dotenv/config";
 import { saveToken, getToken } from "./database.js";
@@ -17,148 +16,138 @@ function buildHeaders(accessToken) {
   };
 }
 
-/**
- * Devuelve el access token guardado en BD o el del .env.
- * Lanza error si no hay ninguno (usuario aún no autenticado).
- */
 export function getValidAccessToken() {
   const stored = getToken();
   if (stored?.access_token) return stored.access_token;
   if (process.env.SIMKL_ACCESS_TOKEN) return process.env.SIMKL_ACCESS_TOKEN;
   throw new Error(
-    "No hay access token de Simkl. Ve a http://localhost:7000/admin/token para autenticarte."
+    "No hay access token de Simkl. Ve a /admin/token para autenticarte."
   );
 }
 
 /**
- * Comprueba si las actividades del usuario cambiaron desde la última sync.
- * Endpoint barato — úsalo antes de hacer llamadas más pesadas.
- */
-export async function getActivities() {
-  const token = getValidAccessToken();
-  const response = await fetch(`${BASE}/sync/activities`, {
-    headers: buildHeaders(token),
-  });
-  if (!response.ok)
-    throw new Error(`Simkl activities error: ${response.status}`);
-  return response.json();
-}
-
-/**
- * Historial completo del usuario (películas + series completadas/viendo).
- * Devuelve objetos con ids (imdb, tmdb, simkl), title, year.
+ * Historial completo: películas y series completadas.
+ * La API devuelve { movies: [...], shows: [...] }
  */
 export async function getHistory() {
   const token = getValidAccessToken();
 
-  // Pedimos movies y shows por separado para tener más control
-  const [moviesRes, showsRes] = await Promise.all([
-    fetch(
-      `${BASE}/sync/all-items/movies/completed?extended=full&limit=100`,
-      { headers: buildHeaders(token) }
-    ),
-    fetch(
-      `${BASE}/sync/all-items/shows/completed?extended=full&limit=100`,
-      { headers: buildHeaders(token) }
-    ),
-  ]);
+  const response = await fetch(
+    `${BASE}/sync/all-items?extended=full`,
+    { headers: buildHeaders(token) }
+  );
 
-  if (!moviesRes.ok)
-    throw new Error(`Simkl history movies error: ${moviesRes.status}`);
-  if (!showsRes.ok)
-    throw new Error(`Simkl history shows error: ${showsRes.status}`);
+  if (!response.ok)
+    throw new Error(`Simkl all-items error: ${response.status} ${await response.text()}`);
 
-  const movies = (await moviesRes.json()) || [];
-  const shows = (await showsRes.json()) || [];
+  const data = await response.json();
 
-  // Normalizar al mismo formato: { title, year, type, ids }
-  const normalized = [
-    ...movies.map((m) => ({
+  // data es { movies: [...], shows: [...], anime: [...] } — cada array puede no existir
+  const movies = Array.isArray(data.movies) ? data.movies : [];
+  const shows = Array.isArray(data.shows) ? data.shows : [];
+
+  // Filtrar solo los completados
+  const completedMovies = movies
+    .filter((m) => m.status === "completed")
+    .map((m) => ({
       title: m.movie?.title || m.title,
       year: m.movie?.year || m.year,
       type: "movie",
       ids: m.movie?.ids || m.ids || {},
       rating: m.user_rating || null,
-    })),
-    ...shows.map((s) => ({
+    }));
+
+  const completedShows = shows
+    .filter((s) => s.status === "completed" || s.status === "watching")
+    .map((s) => ({
       title: s.show?.title || s.title,
       year: s.show?.year || s.year,
       type: "series",
       ids: s.show?.ids || s.ids || {},
       rating: s.user_rating || null,
-    })),
-  ];
+    }));
 
-  return normalized;
+  return [...completedMovies, ...completedShows];
 }
 
 /**
- * Ratings del usuario (1-10) para películas y series.
+ * Ratings del usuario (1-10).
+ * La API devuelve { movies: [...], shows: [...] }
  */
 export async function getRatings() {
   const token = getValidAccessToken();
   const response = await fetch(`${BASE}/sync/ratings?extended=full`, {
     headers: buildHeaders(token),
   });
+
   if (!response.ok)
     throw new Error(`Simkl ratings error: ${response.status}`);
+
   const data = await response.json();
 
-  // Normalizar: movies[] + shows[]
-  const movies = (data.movies || []).map((m) => ({
-    title: m.movie?.title || m.title,
-    year: m.movie?.year || m.year,
-    type: "movie",
-    rating: m.rating,
-    ids: m.movie?.ids || m.ids || {},
-  }));
-  const shows = (data.shows || []).map((s) => ({
-    title: s.show?.title || s.title,
-    year: s.show?.year || s.year,
-    type: "series",
-    rating: s.rating,
-    ids: s.show?.ids || s.ids || {},
-  }));
-
-  return [...movies, ...shows];
-}
-
-/**
- * Watchlist del usuario (plan to watch).
- */
-export async function getWatchlist() {
-  const token = getValidAccessToken();
-  const [moviesRes, showsRes] = await Promise.all([
-    fetch(`${BASE}/sync/all-items/movies/plantowatch?extended=full`, {
-      headers: buildHeaders(token),
-    }),
-    fetch(`${BASE}/sync/all-items/shows/plantowatch?extended=full`, {
-      headers: buildHeaders(token),
-    }),
-  ]);
-
-  const movies = moviesRes.ok ? (await moviesRes.json()) || [] : [];
-  const shows = showsRes.ok ? (await showsRes.json()) || [] : [];
+  const movies = Array.isArray(data.movies) ? data.movies : [];
+  const shows = Array.isArray(data.shows) ? data.shows : [];
 
   return [
     ...movies.map((m) => ({
       title: m.movie?.title || m.title,
       year: m.movie?.year || m.year,
       type: "movie",
+      rating: m.rating,
       ids: m.movie?.ids || m.ids || {},
     })),
     ...shows.map((s) => ({
       title: s.show?.title || s.title,
       year: s.show?.year || s.year,
       type: "series",
+      rating: s.rating,
       ids: s.show?.ids || s.ids || {},
     })),
   ];
 }
 
 /**
- * Extrae títulos ya vistos para pasárselos a Gemini y evitar repeticiones.
+ * Watchlist (plan to watch).
+ * La API devuelve { movies: [...], shows: [...] }
+ */
+export async function getWatchlist() {
+  const token = getValidAccessToken();
+  const response = await fetch(`${BASE}/sync/all-items?extended=full`, {
+    headers: buildHeaders(token),
+  });
+
+  if (!response.ok) return [];
+
+  const data = await response.json();
+
+  const movies = Array.isArray(data.movies) ? data.movies : [];
+  const shows = Array.isArray(data.shows) ? data.shows : [];
+
+  return [
+    ...movies
+      .filter((m) => m.status === "plantowatch")
+      .map((m) => ({
+        title: m.movie?.title || m.title,
+        year: m.movie?.year || m.year,
+        type: "movie",
+        ids: m.movie?.ids || m.ids || {},
+      })),
+    ...shows
+      .filter((s) => s.status === "plantowatch")
+      .map((s) => ({
+        title: s.show?.title || s.title,
+        year: s.show?.year || s.year,
+        type: "series",
+        ids: s.show?.ids || s.ids || {},
+      })),
+  ];
+}
+
+/**
+ * Extrae títulos ya vistos para excluirlos de las recomendaciones de Gemini.
  */
 export function extractWatchedTitles(history) {
-  return [...new Set(history.map((h) => h.title?.toLowerCase()).filter(Boolean))];
+  return [
+    ...new Set(history.map((h) => h.title?.toLowerCase()).filter(Boolean)),
+  ];
 }
