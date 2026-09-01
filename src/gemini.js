@@ -11,9 +11,9 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 // Modelos en orden de preferencia (el primero disponible que soporte JSON output)
 const CANDIDATE_MODELS = [
   "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
   "gemini-3.7-flash",
   "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
 ];
 
 // Schema de respuesta estructurada
@@ -89,9 +89,9 @@ PERFIL DEL USUARIO:
 - Quiere ver: ${profile.watchlistTitles.slice(0, 8).join(", ") || "ninguno"}
 
 INSTRUCCIONES:
-1. Genera exactamente 20 recomendaciones personalizadas.
+1. Genera exactamente 40 recomendaciones personalizadas.
 2. NO recomiendes ninguno de estos títulos ya vistos: ${watchedTitles.slice(0, 50).join(", ") || "ninguno"}.
-3. Mezcla películas y series (mínimo 8 de cada tipo).
+3. Mezcla películas y series (mínimo 18 de cada tipo).
 4. Prioriza similitud de géneros, directores y tono narrativo.
 5. Considera la década de preferencia del usuario según su historial.
 6. Solo títulos REALES que existen en TMDB/IMDb.
@@ -112,7 +112,7 @@ Responde ÚNICAMENTE con el JSON estructurado.`;
           responseMimeType: "application/json",
           responseSchema: RESPONSE_SCHEMA,
           temperature: 0.7,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
         },
       });
 
