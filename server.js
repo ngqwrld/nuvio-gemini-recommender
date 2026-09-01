@@ -20,9 +20,11 @@ import { saveToken, getToken } from "./src/database.js";
 
 const app = express();
 const PORT = process.env.PORT || 7000;
-const REDIRECT_URI = process.env.RAILWAY_PUBLIC_DOMAIN
-  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/admin/token/callback`
-  : `http://localhost:${PORT}/admin/token/callback`;
+const REDIRECT_URI = process.env.PUBLIC_URL
+  ? `${process.env.PUBLIC_URL}/admin/token/callback`
+  : process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/admin/token/callback`
+    : `http://localhost:${PORT}/admin/token/callback`;
 const UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 horas
 
 // ─── Manifest del addon ──────────────────────────────────────────────────────
