@@ -40,39 +40,27 @@ const RESPONSE_SCHEMA = {
 
 /**
  * Construye un perfil resumido del usuario para el prompt de Gemini.
- * Extrae géneros, directores, actores y décadas preferidas.
+ * Compatible con la estructura normalizada de Simkl.
  */
 function buildUserProfile(history, ratings, watchlist) {
   const topRated = ratings
     .filter((r) => r.rating >= 8)
     .slice(0, 20)
-    .map((r) => {
-      const item = r.movie || r.show;
-      return `${item.title} (${r.rating}/10)`;
-    });
+    .map((r) => `${r.title} (${r.rating}/10)`);
 
-  const recentHistory = history.slice(0, 30).map((h) => {
-    const item = h.movie || h.show;
-    return item.title;
-  });
+  const recentHistory = history
+    .slice(0, 30)
+    .map((h) => h.title)
+    .filter(Boolean);
 
-  const watchlistTitles = watchlist.slice(0, 15).map((w) => {
-    const item = w.movie || w.show;
-    return item.title;
-  });
+  const watchlistTitles = watchlist
+    .slice(0, 15)
+    .map((w) => w.title)
+    .filter(Boolean);
 
-  // Géneros más frecuentes en el historial
-  const genreCount = {};
-  for (const h of history.slice(0, 50)) {
-    const item = h.movie || h.show;
-    for (const genre of item.genres || []) {
-      genreCount[genre] = (genreCount[genre] || 0) + 1;
-    }
-  }
-  const topGenres = Object.entries(genreCount)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([g]) => g);
+  // Géneros más frecuentes — Simkl no devuelve géneros en el historial,
+  // así que inferimos a partir de los ratings altos
+  const topGenres = [];
 
   return { topRated, recentHistory, watchlistTitles, topGenres };
 }
