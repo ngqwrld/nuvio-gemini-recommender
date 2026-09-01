@@ -12,7 +12,7 @@ const REDIRECT_URI = process.env.PUBLIC_URL
   : process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/admin/token/callback`
     : `http://localhost:${PORT}/admin/token/callback`;
-const UPDATE_INTERVAL_MS = 30 * 60 * 1000;
+const UPDATE_INTERVAL_MS = 15 * 60 * 1000; // 15 minutos
 
 // ─── Catálogos declarados ────────────────────────────────────────────────────
 // Cada entrada: { type, id, name }
@@ -96,6 +96,7 @@ async function handleCatalog(req, res) {
         description: item.description,
         releaseInfo: item.release_info,
         imdbRating: item.imdb_rating,
+        genres: item.genres || [],
       }));
 
     // ── Trending hoy ───────────────────────────────────────────────────────
@@ -262,3 +263,16 @@ async function runAutoUpdate() {
 
 setTimeout(runAutoUpdate, 5000);
 setInterval(runAutoUpdate, UPDATE_INTERVAL_MS);
+
+// ─── Keep-alive: ping cada 14 min para que Render no duerma el server ─────────
+const SELF_URL = process.env.PUBLIC_URL || null;
+if (SELF_URL) {
+  setInterval(async () => {
+    try {
+      await fetch(`${SELF_URL}/admin/status`);
+      console.log("[Keep-alive] Ping OK");
+    } catch (err) {
+      console.warn("[Keep-alive] Ping fallido:", err.message);
+    }
+  }, 14 * 60 * 1000);
+}

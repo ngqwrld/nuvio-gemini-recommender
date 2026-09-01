@@ -43,7 +43,11 @@ function writeJSON(file, data) {
  */
 export function saveRecommendations(items, catalogId = "gemini-recommended") {
   const all = readJSON(FILES.recommendations, {});
-  all[catalogId] = items.map((item) => ({ ...item, catalogId }));
+  all[catalogId] = items.map((item) => ({
+    ...item,
+    genres: item.genres || [],
+    catalogId,
+  }));
   writeJSON(FILES.recommendations, all);
   console.log(`[DB] ${items.length} recomendaciones guardadas en "${catalogId}".`);
 }

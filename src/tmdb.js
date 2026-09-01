@@ -7,7 +7,7 @@ import "dotenv/config";
 
 const BASE = "https://api.themoviedb.org/3";
 const POSTER_BASE = "https://image.tmdb.org/t/p/w500";
-const BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
+const BACKDROP_BASE = "https://image.tmdb.org/t/p/original";
 const LANG = "es-ES";
 
 function apiUrl(path, params = {}) {
@@ -95,17 +95,20 @@ export async function validateAndEnrich(rec) {
   try {
     let tmdbItem = null;
     let externalIds = null;
+    let details = null;
 
     if (rec.type === "movie") {
       tmdbItem = await searchMovie(rec.title, rec.year);
-      if (!tmdbItem) tmdbItem = await searchMovie(rec.title); // sin año como fallback
+      if (!tmdbItem) tmdbItem = await searchMovie(rec.title);
       if (!tmdbItem) return null;
       externalIds = await getMovieExternalIds(tmdbItem.id);
+      details = await getMovieDetails(tmdbItem.id);
     } else {
       tmdbItem = await searchTV(rec.title, rec.year);
       if (!tmdbItem) tmdbItem = await searchTV(rec.title);
       if (!tmdbItem) return null;
       externalIds = await getTVExternalIds(tmdbItem.id);
+      details = await getTVDetails(tmdbItem.id);
     }
 
     const imdbId = externalIds?.imdb_id;
@@ -115,30 +118,34 @@ export async function validateAndEnrich(rec) {
     }
 
     const name = tmdbItem.title || tmdbItem.name;
-    const releaseYear =
-      (tmdbItem.release_date || tmdbItem.first_air_date || "").substring(0, 4);
-    const poster = tmdbItem.poster_path
-      ? `${POSTER_BASE}${tmdbItem.poster_path}`
-      : null;
-    const background = tmdbItem.backdrop_path
-      ? `${BACKDROP_BASE}${tmdbItem.backdrop_path}`
-      : null;
+    const releaseYear = (tmdbItem.release_date || tmdbItem.first_air_date || "").substring(0, 4);
+    const poster = tmdbItem.poster_path ? `${POSTER_BASE}${tmdbItem.poster_path}` : null;
 
-    // El tipo para Stremio/Nuvio es "movie" o "series"
+    // Backdrop en máxima calidad — preferir el de details si existe
+    const backdropPath = details?.backdrop_path || tmdbItem.backdrop_path;
+    const background = backdropPath ? `${BACKDROP_BASE}${backdropPath}` : null;
+
+    // Géneros en inglés para que Nuvio los muestre correctamente
+    const genres = (details?.genres || []).map((g) => g.name);
+
     const stremioType = rec.type === "movie" ? "movie" : "series";
 
+    // releaseInfo con guión para series (ej: "2019-") o año solo para películas
+    const isOngoing = stremioType === "series" && !details?.last_air_date;
+    const releaseInfo = stremioType === "series"
+      ? `${releaseYear}-${!isOngoing && details?.last_air_date ? details.last_air_date.substring(0, 4) : ""}`
+      : releaseYear;
+
     return {
-      // id con prefijo tt → Nuvio usa Cinemeta/AIOStreams para resolver streams
       id: imdbId,
       type: stremioType,
       name,
       poster,
       background,
-      description: rec.reason,
-      releaseInfo: releaseYear,
-      imdbRating: tmdbItem.vote_average
-        ? tmdbItem.vote_average.toFixed(1)
-        : null,
+      description: details?.overview || rec.reason,
+      releaseInfo,
+      genres,
+      imdbRating: tmdbItem.vote_average ? tmdbItem.vote_average.toFixed(1) : null,
       tmdbId: tmdbItem.id,
       confidence: rec.confidence,
     };

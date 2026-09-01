@@ -7,7 +7,7 @@ import "dotenv/config";
 
 const BASE = "https://api.themoviedb.org/3";
 const POSTER_BASE = "https://image.tmdb.org/t/p/w500";
-const BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
+const BACKDROP_BASE = "https://image.tmdb.org/t/p/original";
 const LANG = "es-ES";
 
 // IDs de géneros en TMDB
@@ -58,12 +58,18 @@ async function toMeta(item, type) {
   const name = item.title || item.name;
   const releaseYear = (item.release_date || item.first_air_date || "").substring(0, 4);
 
-  // Obtener IMDB ID
+  // Obtener IMDB ID y géneros
   let imdbId = null;
+  let genres = [];
   try {
     const extPath = isMovie ? `/movie/${item.id}/external_ids` : `/tv/${item.id}/external_ids`;
-    const ext = await tmdbFetch(apiUrl(extPath));
+    const detailPath = isMovie ? `/movie/${item.id}` : `/tv/${item.id}`;
+    const [ext, detail] = await Promise.all([
+      tmdbFetch(apiUrl(extPath)),
+      tmdbFetch(apiUrl(detailPath)),
+    ]);
     imdbId = ext.imdb_id || null;
+    genres = (detail?.genres || []).map((g) => g.name);
   } catch (_) {}
 
   if (!imdbId) return null;
@@ -77,6 +83,7 @@ async function toMeta(item, type) {
     description: item.overview || null,
     releaseInfo: releaseYear,
     imdbRating: item.vote_average ? item.vote_average.toFixed(1) : null,
+    genres,
   };
 }
 
