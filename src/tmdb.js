@@ -144,11 +144,8 @@ export async function validateAndEnrich(rec) {
 
     const stremioType = rec.type === "movie" ? "movie" : "series";
 
-    // releaseInfo con guión para series (ej: "2019-") o año solo para películas
-    const isOngoing = stremioType === "series" && !details?.last_air_date;
-    const releaseInfo = stremioType === "series"
-      ? `${releaseYear}-${!isOngoing && details?.last_air_date ? details.last_air_date.substring(0, 4) : ""}`
-      : releaseYear;
+    // releaseInfo — Nuvio espera el año de inicio como string simple
+    const releaseInfo = releaseYear;
 
     return {
       id: imdbId,
