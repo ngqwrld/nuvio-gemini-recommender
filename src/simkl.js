@@ -48,20 +48,20 @@ export async function getHistory() {
 
   // Filtrar solo los completados
   const completedMovies = movies
-    .filter((m) => m.status === "completed")
+    .filter((m) => m.status === "completed" && (m.movie?.title || m.title))
     .map((m) => ({
-      title: m.movie?.title || m.title,
-      year: m.movie?.year || m.year,
+      title: m.movie?.title || m.title || "Unknown",
+      year: m.movie?.year || m.year || null,
       type: "movie",
       ids: m.movie?.ids || m.ids || {},
       rating: m.user_rating || null,
     }));
 
   const completedShows = shows
-    .filter((s) => s.status === "completed" || s.status === "watching")
+    .filter((s) => (s.status === "completed" || s.status === "watching") && (s.show?.title || s.title))
     .map((s) => ({
-      title: s.show?.title || s.title,
-      year: s.show?.year || s.year,
+      title: s.show?.title || s.title || "Unknown",
+      year: s.show?.year || s.year || null,
       type: "series",
       ids: s.show?.ids || s.ids || {},
       rating: s.user_rating || null,
@@ -90,19 +90,19 @@ export async function getRatings() {
 
   return [
     ...movies.map((m) => ({
-      title: m.movie?.title || m.title,
-      year: m.movie?.year || m.year,
+      title: m.movie?.title || m.title || "Unknown",
+      year: m.movie?.year || m.year || null,
       type: "movie",
       rating: m.rating,
       ids: m.movie?.ids || m.ids || {},
-    })),
+    })).filter((m) => m.title !== "Unknown"),
     ...shows.map((s) => ({
-      title: s.show?.title || s.title,
-      year: s.show?.year || s.year,
+      title: s.show?.title || s.title || "Unknown",
+      year: s.show?.year || s.year || null,
       type: "series",
       rating: s.rating,
       ids: s.show?.ids || s.ids || {},
-    })),
+    })).filter((s) => s.title !== "Unknown"),
   ];
 }
 
