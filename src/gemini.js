@@ -83,7 +83,6 @@ export async function generateRecommendations(
   const prompt = `Eres un experto recomendador de películas y series con profundo conocimiento cinematográfico.
 
 PERFIL DEL USUARIO:
-- Géneros favoritos: ${profile.topGenres.join(", ") || "variado"}
 - Títulos mejor valorados (8+/10): ${profile.topRated.slice(0, 10).join(", ") || "ninguno"}
 - Visto recientemente: ${profile.recentHistory.slice(0, 10).join(", ") || "ninguno"}
 - Quiere ver: ${profile.watchlistTitles.slice(0, 8).join(", ") || "ninguno"}
@@ -92,11 +91,15 @@ INSTRUCCIONES:
 1. Genera exactamente 40 recomendaciones personalizadas.
 2. NO recomiendes ninguno de estos títulos ya vistos: ${watchedTitles.slice(0, 50).join(", ") || "ninguno"}.
 3. Mezcla películas y series (mínimo 18 de cada tipo).
-4. Prioriza similitud de géneros, directores y tono narrativo.
-5. Considera la década de preferencia del usuario según su historial.
-6. Solo títulos REALES que existen en TMDB/IMDb.
-7. Ordena por relevancia descendente (confidence de 0.0 a 1.0).
-8. La razón debe ser específica (máximo 2 frases), mencionando qué tienen en común con lo que le gusta al usuario.
+4. OBLIGATORIO: el 80% de las recomendaciones deben ser del año 2010 en adelante. El 20% restante puede ser de años anteriores solo si son obras maestras muy relevantes para el perfil del usuario.
+5. PROHIBIDO recomendar más de 1 título de la misma saga o franquicia. Si recomiendas una película de una saga, no incluyas ninguna otra de esa misma saga.
+6. PROHIBIDO recomendar títulos con año anterior a 2000, a menos que sean considerados clásicos imprescindibles y directamente relacionados con los gustos del usuario.
+7. Prioriza títulos con buenas críticas (IMDb 7+, Rotten Tomatoes 70%+).
+8. Prioriza similitud de géneros, directores y tono narrativo con lo que ya vio el usuario.
+9. Solo títulos REALES que existen en TMDB/IMDb.
+10. Ordena por relevancia descendente (confidence de 0.0 a 1.0).
+11. La razón debe ser específica (máximo 2 frases), mencionando qué tienen en común con lo que le gusta al usuario.
+12. Varía los géneros — no pongas más de 6 títulos del mismo género.
 
 Responde ÚNICAMENTE con el JSON estructurado.`;
 
