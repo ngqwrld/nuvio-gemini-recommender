@@ -25,7 +25,7 @@ const REDIRECT_URI = process.env.PUBLIC_URL
   : process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/admin/token/callback`
     : `http://localhost:${PORT}/admin/token/callback`;
-const UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 horas
+const UPDATE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutos
 
 // ─── Manifest del addon ──────────────────────────────────────────────────────
 const MANIFEST = {
