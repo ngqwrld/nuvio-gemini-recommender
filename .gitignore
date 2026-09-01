@@ -1,0 +1,21 @@
+# Secretos - NUNCA subir a repositorios públicos
+.env
+
+# Dependencias
+node_modules/
+
+# Base de datos local
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Caché de recomendaciones generadas
+data/recommendations.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
