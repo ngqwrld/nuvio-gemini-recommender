@@ -6,7 +6,7 @@
 import "dotenv/config";
 
 const BASE = "https://api.themoviedb.org/3";
-const POSTER_BASE = "https://image.tmdb.org/t/p/w500";
+const POSTER_BASE = "https://image.tmdb.org/t/p/w780";
 const BACKDROP_BASE = "https://image.tmdb.org/t/p/original";
 const LANG = "es-ES";
 
@@ -114,6 +114,20 @@ export async function validateAndEnrich(rec) {
     const imdbId = externalIds?.imdb_id;
     if (!imdbId) {
       console.warn(`[TMDB] Sin IMDB ID para: ${rec.title}`);
+      return null;
+    }
+
+    // Filtrar títulos de baja calidad
+    const rating = tmdbItem.vote_average || 0;
+    const voteCount = tmdbItem.vote_count || 0;
+    if (rating < 6.0 || voteCount < 50) {
+      console.warn(`[TMDB] Descartado por baja calidad: ${rec.title} (${rating} IMDb, ${voteCount} votos)`);
+      return null;
+    }
+
+    // Descartar si no tiene poster
+    if (!tmdbItem.poster_path) {
+      console.warn(`[TMDB] Descartado por sin poster: ${rec.title}`);
       return null;
     }
 

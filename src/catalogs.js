@@ -6,7 +6,7 @@
 import "dotenv/config";
 
 const BASE = "https://api.themoviedb.org/3";
-const POSTER_BASE = "https://image.tmdb.org/t/p/w500";
+const POSTER_BASE = "https://image.tmdb.org/t/p/w780";
 const BACKDROP_BASE = "https://image.tmdb.org/t/p/original";
 const LANG = "es-ES";
 
