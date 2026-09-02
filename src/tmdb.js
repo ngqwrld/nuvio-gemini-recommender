@@ -131,6 +131,13 @@ export async function validateAndEnrich(rec) {
       return null;
     }
 
+    // Filtro duro de año — descartar cualquier título anterior a 2010
+    const releaseYear = (tmdbItem.release_date || tmdbItem.first_air_date || "").substring(0, 4);
+    if (releaseYear && parseInt(releaseYear) < 2010) {
+      console.warn(`[TMDB] Descartado por año: ${rec.title} (${releaseYear})`);
+      return null;
+    }
+
     const name = tmdbItem.title || tmdbItem.name;
     const releaseYear = (tmdbItem.release_date || tmdbItem.first_air_date || "").substring(0, 4);
     const poster = tmdbItem.poster_path ? `${POSTER_BASE}${tmdbItem.poster_path}` : null;
