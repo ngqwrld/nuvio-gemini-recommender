@@ -139,7 +139,6 @@ export async function validateAndEnrich(rec) {
     }
 
     const name = tmdbItem.title || tmdbItem.name;
-    const releaseYear = (tmdbItem.release_date || tmdbItem.first_air_date || "").substring(0, 4);
     const poster = tmdbItem.poster_path ? `${POSTER_BASE}${tmdbItem.poster_path}` : null;
 
     // Backdrop en máxima calidad — preferir el de details si existe
