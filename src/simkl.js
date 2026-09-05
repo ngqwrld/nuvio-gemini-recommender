@@ -26,21 +26,36 @@ export function getValidAccessToken() {
 }
 
 /**
- * Historial completo: películas y series completadas.
- * La API devuelve { movies: [...], shows: [...] }
+ * Obtiene todos los items de Simkl en una sola llamada y los cachea por 5 min
+ * para evitar peticiones duplicadas dentro del mismo pipeline.
  */
-export async function getHistory() {
-  const token = getValidAccessToken();
+let _allItemsCache = null;
+let _allItemsCacheAt = 0;
+const ALL_ITEMS_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
+async function fetchAllItems() {
+  const now = Date.now();
+  if (_allItemsCache && now - _allItemsCacheAt < ALL_ITEMS_TTL_MS) {
+    return _allItemsCache;
+  }
+  const token = getValidAccessToken();
   const response = await fetch(
     `${BASE}/sync/all-items?extended=full`,
     { headers: buildHeaders(token) }
   );
-
   if (!response.ok)
     throw new Error(`Simkl all-items error: ${response.status} ${await response.text()}`);
+  _allItemsCache = await response.json();
+  _allItemsCacheAt = now;
+  return _allItemsCache;
+}
 
-  const data = await response.json();
+/**
+ * Historial completo: películas y series completadas.
+ * La API devuelve { movies: [...], shows: [...] }
+ */
+export async function getHistory() {
+  const data = await fetchAllItems();
 
   // data es { movies: [...], shows: [...], anime: [...] } — cada array puede no existir
   const movies = Array.isArray(data.movies) ? data.movies : [];
@@ -111,14 +126,12 @@ export async function getRatings() {
  * La API devuelve { movies: [...], shows: [...] }
  */
 export async function getWatchlist() {
-  const token = getValidAccessToken();
-  const response = await fetch(`${BASE}/sync/all-items?extended=full`, {
-    headers: buildHeaders(token),
-  });
-
-  if (!response.ok) return [];
-
-  const data = await response.json();
+  let data;
+  try {
+    data = await fetchAllItems();
+  } catch {
+    return [];
+  }
 
   const movies = Array.isArray(data.movies) ? data.movies : [];
   const shows = Array.isArray(data.shows) ? data.shows : [];
