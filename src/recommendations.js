@@ -11,7 +11,6 @@ import {
   saveRecommendations,
   getRecommendations,
   saveHistoryHash,
-  getHistoryHash,
 } from "./database.js";
 
 /**
@@ -43,24 +42,9 @@ export async function updateRecommendations(force = false) {
     `[Pipeline] Historial: ${history.length} | Ratings: ${ratings.length} | Watchlist: ${watchlist.length}`
   );
 
-  // Comprobar si el historial cambió
+  // Guardar el hash actual para referencia, pero siempre regenerar
   const currentHash = hashHistory(history);
-  const savedHash = getHistoryHash();
-
-  if (!force && savedHash === currentHash) {
-    const cached = getRecommendations("gemini-recommended");
-    if (cached.length > 0) {
-      console.log(
-        "[Pipeline] El historial no cambió. Usando recomendaciones guardadas."
-      );
-      return { updated: false, count: cached.length, items: cached };
-    }
-    // Si el hash coincide pero no hay recomendaciones guardadas (p.ej. primer arranque
-    // o datos eliminados), regeneramos igualmente para no quedar con listas vacías.
-    console.log(
-      "[Pipeline] El historial no cambió pero no hay recomendaciones guardadas. Regenerando..."
-    );
-  }
+  saveHistoryHash(currentHash);
 
   // Generar nuevas recomendaciones con Gemini
   console.log("[Pipeline] Generando recomendaciones con Gemini...");
