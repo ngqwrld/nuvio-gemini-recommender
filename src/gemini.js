@@ -134,9 +134,9 @@ Responde ÚNICAMENTE con el JSON estructurado.`;
         lastError = err;
 
         if (is503 && attempt < 3) {
-          // Esperar 5 segundos antes de reintentar
-          console.log(`[Gemini] Saturado, reintentando en 5s...`);
-          await new Promise((r) => setTimeout(r, 5000));
+          const wait = attempt * 15000; // 15s, luego 30s
+          console.log(`[Gemini] Saturado, reintentando en ${wait / 1000}s...`);
+          await new Promise((r) => setTimeout(r, wait));
         } else {
           break; // pasar al siguiente modelo
         }

@@ -1,7 +1,6 @@
 // src/recommendations.js
 // Pipeline principal de recomendaciones.
-// Orquesta Simkl → Gemini → TMDB → SQLite.
-// Incluye comprobación de hash para evitar llamadas innecesarias a Gemini.
+// Orquesta Simkl → Gemini → TMDB → BD.
 
 import crypto from "crypto";
 import { getHistory, getRatings, getWatchlist, extractWatchedTitles } from "./simkl.js";
@@ -13,10 +12,9 @@ import {
   saveHistoryHash,
 } from "./database.js";
 
-/**
- * Genera un hash SHA-256 de los primeros 50 títulos del historial.
- * Sirve para detectar si el historial cambió y solo llamar a Gemini si es necesario.
- */
+// Mutex simple: evita que dos pipelines corran al mismo tiempo
+let _running = false;
+
 function hashHistory(history) {
   const sample = history
     .slice(0, 50)
@@ -27,10 +25,34 @@ function hashHistory(history) {
 
 /**
  * Ejecuta el pipeline completo y actualiza las recomendaciones en BD.
- * @param {boolean} force - Si true, omite la comprobación de hash y siempre llama a Gemini
+ * Si ya hay un pipeline en curso, espera a que termine en lugar de lanzar otro.
+ * @param {boolean} force - ignorado, siempre regenera
  * @returns {{ updated: boolean, count: number, items: Array }}
  */
 export async function updateRecommendations(force = false) {
+  // Si ya hay un pipeline corriendo, esperar hasta 3 minutos a que termine
+  if (_running) {
+    console.log("[Pipeline] Ya hay una actualización en curso. Esperando...");
+    const start = Date.now();
+    while (_running && Date.now() - start < 180_000) {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    if (_running) {
+      console.warn("[Pipeline] Timeout esperando pipeline anterior. Abortando.");
+      const cached = getRecommendations("gemini-recommended");
+      return { updated: false, count: cached.length, items: cached };
+    }
+  }
+
+  _running = true;
+  try {
+    return await _runPipeline();
+  } finally {
+    _running = false;
+  }
+}
+
+async function _runPipeline() {
   console.log("[Pipeline] Obteniendo datos de Simkl...");
   const [history, ratings, watchlist] = await Promise.all([
     getHistory(),
@@ -42,7 +64,7 @@ export async function updateRecommendations(force = false) {
     `[Pipeline] Historial: ${history.length} | Ratings: ${ratings.length} | Watchlist: ${watchlist.length}`
   );
 
-  // Guardar el hash actual para referencia, pero siempre regenerar
+  // Guardar hash para referencia (no se usa para bloquear)
   const currentHash = hashHistory(history);
   saveHistoryHash(currentHash);
 
@@ -81,7 +103,6 @@ export async function updateRecommendations(force = false) {
 
   // Guardar en BD
   saveRecommendations(validated, "gemini-recommended");
-  saveHistoryHash(currentHash);
 
   return { updated: true, count: validated.length, items: validated };
 }
